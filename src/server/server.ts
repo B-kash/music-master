@@ -12,7 +12,7 @@ export class Server {
         this.bot.login(process.env.BOT_TOKEN);
     }
 
-    private setUpListeners() {
+    private setUpListeners(): void {
         this.bot.on('ready', () => {
             console.log('HEllo world i am here');
         });
