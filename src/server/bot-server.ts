@@ -1,6 +1,6 @@
 import Discord from 'discord.js';
 
-export class Server {
+export class BotServer {
     private bot: Discord.Client;
 
     constructor() {
