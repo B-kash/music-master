@@ -6,7 +6,9 @@ export class BotActions {
     static async joinVoice(state: BotState) {
         try {
             state.connection = await state.voiceChannel.join();
-            BotActions.play(state);
+            BotActions.play(state).catch((err: Error) => {
+                console.log('Something went wrong try again', err)
+            });
         } catch (e) {
             console.log('Cant join with error ', e);
             return state.textChannel.send('Cant join with error ' + e);
