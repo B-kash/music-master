@@ -1,5 +1,20 @@
 import Discord from 'discord.js';
 import ytdl from 'ytdl-core';
+
+export interface Song {
+    title: string;
+    url: string;
+    requestedBy: string;
+}
+
+export interface BotState {
+    playlist: Song[];
+    textChannel: Discord.TextChannel;
+    voiceChannel: Discord.VoiceChannel;
+    connection: Discord.VoiceConnection;
+    playing: boolean;
+}
+
 export class BotServer {
     private bot: Discord.Client;
     constructor() {
