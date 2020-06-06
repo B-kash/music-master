@@ -1,74 +1,110 @@
 import Discord from 'discord.js';
-import ytdl from 'ytdl-core';
+import {BotState} from "./bot-state";
+import {Song} from "./song";
+import {Bot} from "./bot";
+
 export class BotServer {
-    private bot: Discord.Client;
+    private client: Discord.Client;
+    private bot: Bot;
+
     constructor() {
-        this.bot = new Discord.Client();
+        this.client = new Discord.Client();
     }
 
     start(): void {
+        this.bot = new Bot();
         this.setUpListeners();
-        this.bot.login(process.env.BOT_TOKEN);
+        this.client.login(process.env.BOT_TOKEN);
     }
 
     private setUpListeners(): void {
-        this.bot.on('ready', () => {
+        this.client.on('ready', () => {
             console.log('HEllo world i am here');
         });
-        this.bot.on('message', (message: Discord.Message) => {
-            if (message.author.bot) {
-                return;
-            }
+        this.client.on('message', this.onMessage);
+    }
+
+    private onMessage = async (message: Discord.Message): Promise<void> => {
+        if (message.author.bot) {
+            return;
+        }
+        try {
             if (message.content.substring(0, process.env.PREFIX.length) === process.env.PREFIX) {
                 const args = message.content.substring(process.env.PREFIX.length).split(" ");
                 const command = args.shift();
                 switch (command) {
-                    case 'tic':
-                        message.reply('TAC!');
+                    case 'play':
+                        this.checkForError(message);
+                        await this.manageState(args.shift(), message);
+                        if (!this.bot.isPlaying()) {
+                            this.bot.joinVoice().catch((err: Error) => {
+                                throw err;
+                            });
+                        }
                         break;
-                    case 'join':
-                        this.joinVoice(message, args.shift());
+                    case 'skip':
+                        this.checkForError(message);
+                        this.bot.skip();
+                        break;
+                    case 'pause':
+                        this.checkForError(message);
+                        this.bot.pause();
+                        break;
+                    case 'resume':
+                        this.checkForError(message);
+                        this.bot.resume();
+                        break;
+                    case 'stop':
+                        this.checkForError(message);
+                        this.bot.stop();
+                        break;
                     default:
                         message.channel.send('DAMNN!!');
                 }
             } else {
                 console.log('Not mine!!');
             }
-        });
-    }
+        } catch (e) {
+            return;
+        }
+    };
 
-    private async joinVoice(message: Discord.Message, url: string) {
-        const voiceChannel = message.member.voice.channel;
-        if (!voiceChannel)
-            return message.channel.send(
+    private checkForError(message: Discord.Message) {
+        const voiceChannel: Discord.VoiceChannel = message.member.voice.channel;
+        if (!voiceChannel) {
+            message.channel.send(
                 "You need to be in a voice channel to play music!"
             );
-        const permissions = voiceChannel.permissionsFor(message.client.user);
+            throw new Error();
+        }
+        const permissions: Readonly<Discord.Permissions> = voiceChannel.permissionsFor(message.client.user);
         if (
             !permissions.has("CONNECT")
             || !permissions.has("SPEAK")
         ) {
-            return message.channel.send(
+            message.channel.send(
                 "I need the permissions to join and speak in your voice channel!"
             );
+            throw new Error();
         }
-        try {
-            let connection = await voiceChannel.join();
-            this.play(connection, url);
-        } catch (e) {
-            console.log('Cant join with error ', e);
-            return message.reply('Cant join with error ' + e);
-        }
-
     }
 
-    private async play(connection: Discord.VoiceConnection, url: string) {
-
-        connection.play(await ytdl(url)).on("finish", () => {
-            console.log('finished playing')
-        }).on('error', () => {
-            console.log("Fuck you error come")
-        });
-
+    private async manageState(url: string, message: Discord.Message) {
+        const voiceChannel: Discord.VoiceChannel = message.member.voice.channel;
+        const song: Song = await this.bot.getSong(url, message.author.username);
+        let state: BotState = this.bot.state;
+        if (!state) {
+            state = {
+                playlist: [song],
+                textChannel: message.channel as Discord.TextChannel,
+                voiceChannel: voiceChannel,
+                connection: null,
+                playing: false
+            };
+            this.bot.updateState(state);
+        } else {
+            state.playlist.push(song);
+        }
     }
+
 }
