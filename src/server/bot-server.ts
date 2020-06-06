@@ -38,7 +38,7 @@ export class BotServer {
                         }
                         break;
                     case 'skip':
-                        this.skip();
+                        BotActions.skip(this.state);
                         break;
                     default:
                         message.channel.send('DAMNN!!');
@@ -78,7 +78,4 @@ export class BotServer {
         }
     }
 
-    private skip() {
-        this.state.connection.dispatcher.end();
-    }
 }

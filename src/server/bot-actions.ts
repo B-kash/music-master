@@ -46,4 +46,8 @@ export class BotActions {
             requestedBy: requestedBy
         };
     }
+
+    static skip(state: BotState) {
+        state.connection.dispatcher.end();
+    }
 }
