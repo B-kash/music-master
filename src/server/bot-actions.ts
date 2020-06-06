@@ -50,4 +50,17 @@ export class BotActions {
     static skip(state: BotState) {
         state.connection.dispatcher.end();
     }
+
+    static pause(state: BotState) {
+        state.connection.dispatcher.pause();
+    }
+
+    static resume(state: BotState) {
+        state.connection.dispatcher.resume();
+    }
+
+    static stop(state: BotState) {
+        state.connection.dispatcher.end();
+        state.playlist.length = 0;
+    }
 }

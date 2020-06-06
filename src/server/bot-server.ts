@@ -40,6 +40,15 @@ export class BotServer {
                     case 'skip':
                         BotActions.skip(this.state);
                         break;
+                    case 'pause':
+                        BotActions.pause(this.state);
+                        break;
+                    case 'resume':
+                        BotActions.resume(this.state);
+                        break;
+                    case 'stop':
+                        BotActions.stop(this.state);
+                        break;
                     default:
                         message.channel.send('DAMNN!!');
                 }
