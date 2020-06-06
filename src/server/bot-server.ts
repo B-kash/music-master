@@ -5,7 +5,6 @@ import {Bot} from "./bot";
 
 export class BotServer {
     private client: Discord.Client;
-    private state: BotState | undefined;
     private bot: Bot;
 
     constructor() {
@@ -13,7 +12,7 @@ export class BotServer {
     }
 
     start(): void {
-        this.bot = new Bot(this.state);
+        this.bot = new Bot();
         this.setUpListeners();
         this.client.login(process.env.BOT_TOKEN);
     }
@@ -26,7 +25,7 @@ export class BotServer {
     }
 
     private onMessage = async (message: Discord.Message): Promise<void> => {
-        if (message.author.client) {
+        if (message.author.bot) {
             return;
         }
         try {
@@ -37,7 +36,7 @@ export class BotServer {
                     case 'play':
                         this.checkForError(message);
                         await this.manageState(args.shift(), message);
-                        if (!this.state.playing) {
+                        if (!this.bot.isPlaying()) {
                             this.bot.joinVoice().catch((err: Error) => {
                                 throw err;
                             });
@@ -93,16 +92,18 @@ export class BotServer {
     private async manageState(url: string, message: Discord.Message) {
         const voiceChannel: Discord.VoiceChannel = message.member.voice.channel;
         const song: Song = await this.bot.getSong(url, message.author.username);
-        if (!this.state) {
-            this.state = {
+        let state: BotState = this.bot.state;
+        if (!state) {
+            state = {
                 playlist: [song],
                 textChannel: message.channel as Discord.TextChannel,
                 voiceChannel: voiceChannel,
                 connection: null,
                 playing: false
-            }
+            };
+            this.bot.updateState(state);
         } else {
-            this.state.playlist.push(song);
+            state.playlist.push(song);
         }
     }
 

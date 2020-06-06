@@ -1,9 +1,10 @@
 import {Song} from "./song";
-import {BotState} from "./bot-state";
 import ytdl from 'ytdl-core';
+import {BotState} from "./bot-state";
 
 export class Bot {
-    constructor(private state: BotState) {
+    state: BotState;
+    constructor() {
     }
 
     async joinVoice() {
@@ -65,5 +66,13 @@ export class Bot {
     stop() {
         this.state.connection.dispatcher.end();
         this.state.playlist.length = 0;
+    }
+
+    isPlaying() {
+        return this.state?.playing;
+    }
+
+    updateState(state: BotState){
+        this.state = state;
     }
 }
