@@ -1,19 +1,7 @@
 import Discord from 'discord.js';
-import ytdl from 'ytdl-core';
-
-export interface Song {
-    title: string;
-    url: string;
-    requestedBy: string;
-}
-
-export interface BotState {
-    playlist: Song[];
-    textChannel: Discord.TextChannel;
-    voiceChannel: Discord.VoiceChannel;
-    connection: Discord.VoiceConnection;
-    playing: boolean;
-}
+import {BotState} from "./bot-state";
+import {Song} from "./song";
+import {BotActions} from "./bot-actions";
 
 export class BotServer {
     private bot: Discord.Client;
@@ -46,7 +34,7 @@ export class BotServer {
                     case 'play':
                         await this.manageState(args.shift(), message);
                         if (!this.state.playing) {
-                            this.joinVoice();
+                            BotActions.joinVoice(this.state);
                         }
                         break;
                     case 'skip':
@@ -59,40 +47,6 @@ export class BotServer {
                 console.log('Not mine!!');
             }
         });
-    }
-
-    private async joinVoice() {
-        try {
-            this.state.connection = await this.state.voiceChannel.join();
-            this.play();
-        } catch (e) {
-            console.log('Cant join with error ', e);
-            return this.state.textChannel.send('Cant join with error ' + e);
-        }
-
-    }
-
-    private async play() {
-        if (this.state.playlist.length === 0) {
-            this.state.voiceChannel.leave();
-            this.state = null;
-            return ;
-        }
-        const connection = this.state.connection;
-        const song: Song = this.state.playlist.shift();
-        connection
-            .play(await ytdl(song.url))
-            .once('speaking', () => {
-                this.state.playing = true
-            })
-            .on("finish", () => {
-                console.log('finished playing');
-                this.play();
-            }).on('error', () => {
-            console.log("Fuck you error come");
-            this.state.textChannel.send('Error while trying to play. Try disconnecting and reconnecting the bot again')
-        });
-
     }
 
     private async manageState(url: string, message: Discord.Message) {
@@ -110,12 +64,7 @@ export class BotServer {
                 "I need the permissions to join and speak in your voice channel!"
             );
         }
-        const details = await ytdl.getBasicInfo(url);
-        const song: Song = {
-            title: details.videoDetails.title,
-            url: details.videoDetails.video_url,
-            requestedBy: message.author.username
-        };
+        const song: Song = await BotActions.getSong(url, message.author.username);
         if (!this.state) {
             this.state = {
                 playlist: [song],
@@ -124,7 +73,7 @@ export class BotServer {
                 connection: null,
                 playing: false
             }
-        }else{
+        } else {
             this.state.playlist.push(song);
         }
     }
