@@ -17,6 +17,8 @@ export interface BotState {
 
 export class BotServer {
     private bot: Discord.Client;
+    private state: BotState | undefined;
+
     constructor() {
         this.bot = new Discord.Client();
     }
@@ -30,7 +32,7 @@ export class BotServer {
         this.bot.on('ready', () => {
             console.log('HEllo world i am here');
         });
-        this.bot.on('message', (message: Discord.Message) => {
+        this.bot.on('message', async (message: Discord.Message) => {
             if (message.author.bot) {
                 return;
             }
@@ -41,8 +43,15 @@ export class BotServer {
                     case 'tic':
                         message.reply('TAC!');
                         break;
-                    case 'join':
-                        this.joinVoice(message, args.shift());
+                    case 'play':
+                        await this.manageState(args.shift(), message);
+                        if (!this.state.playing) {
+                            this.joinVoice();
+                        }
+                        break;
+                    case 'skip':
+                        this.skip();
+                        break;
                     default:
                         message.channel.send('DAMNN!!');
                 }
@@ -52,13 +61,47 @@ export class BotServer {
         });
     }
 
-    private async joinVoice(message: Discord.Message, url: string) {
-        const voiceChannel = message.member.voice.channel;
+    private async joinVoice() {
+        try {
+            this.state.connection = await this.state.voiceChannel.join();
+            this.play();
+        } catch (e) {
+            console.log('Cant join with error ', e);
+            return this.state.textChannel.send('Cant join with error ' + e);
+        }
+
+    }
+
+    private async play() {
+        if (this.state.playlist.length === 0) {
+            this.state.voiceChannel.leave();
+            this.state = null;
+            return ;
+        }
+        const connection = this.state.connection;
+        const song: Song = this.state.playlist.shift();
+        connection
+            .play(await ytdl(song.url))
+            .once('speaking', () => {
+                this.state.playing = true
+            })
+            .on("finish", () => {
+                console.log('finished playing');
+                this.play();
+            }).on('error', () => {
+            console.log("Fuck you error come");
+            this.state.textChannel.send('Error while trying to play. Try disconnecting and reconnecting the bot again')
+        });
+
+    }
+
+    private async manageState(url: string, message: Discord.Message) {
+        const voiceChannel: Discord.VoiceChannel = message.member.voice.channel;
         if (!voiceChannel)
             return message.channel.send(
                 "You need to be in a voice channel to play music!"
             );
-        const permissions = voiceChannel.permissionsFor(message.client.user);
+        const permissions: Readonly<Discord.Permissions> = voiceChannel.permissionsFor(message.client.user);
         if (
             !permissions.has("CONNECT")
             || !permissions.has("SPEAK")
@@ -67,23 +110,26 @@ export class BotServer {
                 "I need the permissions to join and speak in your voice channel!"
             );
         }
-        try {
-            let connection = await voiceChannel.join();
-            this.play(connection, url);
-        } catch (e) {
-            console.log('Cant join with error ', e);
-            return message.reply('Cant join with error ' + e);
+        const details = await ytdl.getBasicInfo(url);
+        const song: Song = {
+            title: details.videoDetails.title,
+            url: details.videoDetails.video_url,
+            requestedBy: message.author.username
+        };
+        if (!this.state) {
+            this.state = {
+                playlist: [song],
+                textChannel: message.channel as Discord.TextChannel,
+                voiceChannel: voiceChannel,
+                connection: null,
+                playing: false
+            }
+        }else{
+            this.state.playlist.push(song);
         }
-
     }
 
-    private async play(connection: Discord.VoiceConnection, url: string) {
-
-        connection.play(await ytdl(url)).on("finish", () => {
-            console.log('finished playing')
-        }).on('error', () => {
-            console.log("Fuck you error come")
-        });
-
+    private skip() {
+        this.state.connection.dispatcher.end();
     }
 }
