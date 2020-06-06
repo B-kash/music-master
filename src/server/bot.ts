@@ -4,23 +4,21 @@ import {BotState} from "./bot-state";
 
 export class Bot {
     state: BotState;
-    constructor() {
-    }
 
-    async joinVoice() {
+    async joinVoice(): Promise<void> {
         try {
             this.state.connection = await this.state.voiceChannel.join();
             this.play().catch((err: Error) => {
-                console.log('Something went wrong try again', err)
+                console.log('Something went wrong try again', err);
             });
         } catch (e) {
             console.log('Cant join with error ', e);
-            return this.state.textChannel.send('Cant join with error ' + e);
+            this.state.textChannel.send('Cant join with error ' + e);
         }
 
     }
 
-    async play() {
+    async play(): Promise<void> {
         if (this.state.playlist.length === 0) {
             this.state.voiceChannel.leave();
             this.state = null;
@@ -31,14 +29,13 @@ export class Bot {
         connection
             .play(await ytdl(song.url))
             .once('speaking', () => {
-                this.state.playing = true
-            })
-            .on("finish", () => {
-                console.log('finished playing');
-                this.play();
-            }).on('error', () => {
+                this.state.playing = true;
+            }).on("finish", () => {
+            console.log('finished playing');
+            this.play();
+        }).on('error', () => {
             console.log("Fuck you error come");
-            this.state.textChannel.send('Error while trying to play. Try disconnecting and reconnecting the bot again')
+            this.state.textChannel.send('Error while trying to play. Try disconnecting and reconnecting the bot again');
         });
     }
 
@@ -51,28 +48,28 @@ export class Bot {
         };
     }
 
-    skip() {
+    skip(): void {
         this.state.connection.dispatcher.end();
     }
 
-    pause() {
+    pause(): void {
         this.state.connection.dispatcher.pause();
     }
 
-    resume() {
+    resume(): void {
         this.state.connection.dispatcher.resume();
     }
 
-    stop() {
+    stop(): void {
         this.state.connection.dispatcher.end();
         this.state.playlist.length = 0;
     }
 
-    isPlaying() {
+    isPlaying(): boolean {
         return this.state?.playing;
     }
 
-    updateState(state: BotState){
+    updateState(state: BotState): void {
         this.state = state;
     }
 }
